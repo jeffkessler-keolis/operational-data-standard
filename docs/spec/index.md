@@ -1,3 +1,4 @@
+> _Jeff's internal brain dump of how this could possibly work in the reverse direction… spoiler, it doesn't really._
 
 # Reference
 
@@ -98,6 +99,7 @@ In addition to the fields defined in GTFS, specific fields for use within TODS a
 | --- | --- | --- | --- | --- |
 | Any Supplement file | `TODS_delete` | Enum | Optional | (blank) - Update other fields; do not delete.<br>`1` - Deletes the GTFS row in the corresponding file whose Primary Key matches the value in the Supplement file's row. |
 | `trips_supplement.txt` | `TODS_trip_type` | Text | Optional | Defines the type of the trip if distinct from a standard revenue trip. |
+| `trips_supplement.txt` | `TODS_trip_equivalence` | Text | Optional | Defines an alternate identifier that can be used to refer to the trip. |
 | `stops_supplement.txt` | `TODS_location_type` | Text | Optional | Defines the type of the location if distinct from a standard GTFS location type. Where defined, the GTFS `location_type` shall be ignored. |
 
 ## TODS-Specific File Definitions
@@ -116,7 +118,7 @@ Primary Key: (`service_id`, `trip_service_id`, `run_id`, `event_sequence`)
 | `block_id` | ID referencing `trips.block_id` | Optional | Identifies the block to which the run event belongs.<br /><br />This field is always optional. May exist even if `trip_id` does not (e.g. if an event represents a run-as-directed block with no scheduled trips). May exist even if `trip_id` exists and the associated trip in `trips.txt` doesn't have a `block_id`. May be omitted even if `trip_id` exists and the associated trip in `trips.txt` has a `block_id`.<br /><br />If `block_id` is set, `trip_id` is set, and the associated trip in `trips.txt` has a `block_id`, then the two `block_id`s must not be different. |
 | `job_type` | Text | Optional | The type of job that the employee is doing, in a human-readable format. e.g. "Assistant Conductor". Producers may use any values, but should be consistent.<br /><br />A single run may include more than one `job_type` throughout the day if the employee has multiple responsibilities, e.g. an "Operator" in the morning and a "Shifter" in the afternoon. |
 | `event_type` | Text | Required | The type of event that the employee is doing, in a human-readable format. e.g. "Sign-in". Producers may use any values, but should be consistent. Consumers may ignore events with an `event_type` that they don't recognize. |
-| `trip_id` | ID referencing `trips.trip_id` | Optional | If this run event corresponds to working on a trip, identifies that trip. |
+| `trip_id` | ID referencing `trips.trip_id` or `trips.TODS_trip_equivalence` | Optional | If this run event corresponds to working on a trip, identifies that trip. Preference given to a match on `trips.trip_id`, followed by a match on `trips.TODS_trip_equivalence`. |
 | `start_location` | ID referencing `stops.stop_id` | Required | Identifies where the employee starts working this event.<br /><br />If `trip_id` is set (and `mid_trip_start` is not `1`), this should be the `stop_id` of the first stop of the trip in `stop_times.txt` (after applying any trip supplement). If `start_mid_trip` is `1`, this should be the location where the employee starts working, matching a `stop_id` in the middle of the supplemented trip. |
 | `start_time` | Time | Required | Identifies the time when the employee starts working this event.<br /><br />If `trip_id` is set (and `mid_trip_start` is not `1`), this corresponds to the time of the first stop of the trip in `stop_times.txt` (after applying any trip supplement). If `start_mid_trip` is `1`, this time corresponds to a stop time in the middle of the supplemented trip, when the employee starts working on the trip. Note that this time may not exactly match `stop_times.txt` `arrival_time` or `departure_time` if the employee is considered to be working for a couple minutes before the trip departs. This field is about when the employee is working, and consumers who care about the the trip times should check `stop_times.txt` instead. |
 | `start_mid_trip` | Enum | Optional | Indicates whether the event begins at the start of the trip or in the middle of the trip (after applying any trip supplement).<br /><br />`0` (or blank) - Run event is not associated with a trip, or no information about whether the run event starts mid-trip<br />`1` - Run event starts mid-trip<br />`2` - Run event does not start mid-trip |
@@ -139,6 +141,10 @@ Within one run, if two events both have `trip_id` set, they must not overlap in 
 Events that don't have `trip_id` set may overlap in time with any other events. This is to allow events that represent a large portion of a day (such as time that an employee is available to work), regardless of what other duties or trips they have during that time.
 
 Because some events may overlap in time, it may not be possible to choose a single order for events within a run that's correct for all uses. Producers should use `event_sequence` to define a reasonable order. If a consumer cares about exactly how overlapping events are ordered, they should sort based on the time fields and `event_type` instead.
+
+#### `TODS_trip_equivalence`
+
+The `run_events` file prioritizes matches to trips based upon the `trip_id` field; however, in instances for which the trip_id is not defined, the trip can be matched on the `TODS_trip_equivalence` field. This field allows users to map one run to multiple trips in the event the trip is not modified across various public-facing service_ids. [But then it wouldn't match on the service_id?]
 
 #### `run_events` Notes
 
