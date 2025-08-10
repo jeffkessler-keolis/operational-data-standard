@@ -30,9 +30,9 @@ plugins:
   - awesome-pages
 
 extra:
-  # analytics:
-  #   provider: google
-  #   property: G-N7RXJMH84M
+  analytics:
+    provider: google
+    property: G-HKC18043J5
   consent:
     title: Cookie Consent
     description: >-
